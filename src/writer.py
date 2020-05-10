@@ -12,8 +12,12 @@ class Writer(object):
         self._socket = socket
         self._total_sent = 0
         self._last_sent = None
+        self._enabled = False
 
     def write(self):
+        if not self._enabled:
+            raise RuntimeError('writer is disabled, can not write')
+
         self._last_sent = self._socket.send(resp)
         self._total_sent += self._last_sent
 
@@ -22,3 +26,6 @@ class Writer(object):
             return False
 
         return not self._last_sent or self._total_sent == len(resp)
+
+    def enable(self):
+        self._enabled = True

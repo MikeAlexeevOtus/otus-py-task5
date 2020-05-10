@@ -38,10 +38,15 @@ class MainLoop(object):
 
         elif event == select.EPOLLIN:
             print('read request')
-            self._readers[fileno].read()
-            if self._readers[fileno].is_read_completed():
+            reader = self._readers[fileno]
+            reader.read()
+            if reader.is_read_completed():
                 # ready to send response, switch subscription
                 self._epoll.modify(fileno, select.EPOLLOUT)
+
+                # prevent concurent request body access
+                reader.disable()
+                self._writers[fileno].enable()
 
         elif event == select.EPOLLOUT:
             print('send response')
