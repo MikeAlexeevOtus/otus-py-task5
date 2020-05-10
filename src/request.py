@@ -1,6 +1,6 @@
 class Request(object):
     EOF1 = b'\n\n'
-    EOF2 = b'\n\r\n'
+    EOF2 = b'\r\n\r\n'
 
     def __init__(self):
         self._buffer = bytearray()

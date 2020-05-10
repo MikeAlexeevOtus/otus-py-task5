@@ -1,24 +1,16 @@
 import select
 
-from request import Request
-
-resp = b"""HTTP/1.0 200 OK
-Date: Mon, 1 Jan 1996 01:01:01 GMT
-Content-Type: text/plain
-Content-Length: 4
-
-xx
-""".replace(b'\n', b'\r\n')
+from reader import Reader
+from writer import Writer
 
 
 class MainLoop(object):
-    READ_SIZE = 4096
-
     def __init__(self, serversock):
         self._epoll = None
         self._serversock = serversock
         self._connections = {}
-        self._requests = {}
+        self._readers = {}
+        self._writers = {}
 
     def run(self):
         self._epoll = select.epoll()
@@ -27,9 +19,9 @@ class MainLoop(object):
         # TODO - try/except
         while True:
             for fileno, event in self._epoll.poll(1):
-                self._process_socket_event(fileno, event)
+                self._process_epoll_event(fileno, event)
 
-    def _process_socket_event(self, fileno, event):
+    def _process_epoll_event(self, fileno, event):
         print(fileno, event)
         if not self._epoll:
             raise RuntimeError('epoll is not initialized')
@@ -39,31 +31,30 @@ class MainLoop(object):
             conn, addr = self._serversock.accept()
             conn.setblocking(False)
             self._connections[conn.fileno()] = conn
-            self._requests[conn.fileno()] = Request()
+            self._readers[conn.fileno()] = Reader(conn)
+            self._writers[conn.fileno()] = Writer(conn)
             # subscribe for connection new data event
             self._epoll.register(conn, select.EPOLLIN)
 
         elif event == select.EPOLLIN:
-            # client socket is ready for reading
-            data = self._connections[fileno].recv(self.READ_SIZE)
-            self._requests[fileno].extend(data)
-            if not data or self._requests[fileno].is_full():
+            print('read request')
+            self._readers[fileno].read()
+            if self._readers[fileno].is_read_completed():
                 # ready to send response, switch subscription
                 self._epoll.modify(fileno, select.EPOLLOUT)
 
         elif event == select.EPOLLOUT:
             print('send response')
-            bytes_sent = self._connections[fileno].send(resp)
-            print('sent', bytes_sent)
-            # TODO accumulate and compare with total
-            if not bytes_sent or bytes_sent == len(resp):
-                print('close connection')
+            self._writers[fileno].write()
+            if self._writers[fileno].is_write_completed():
                 self._close_connection(fileno)
         else:
-            print('close connection')
             self._close_connection(fileno)
 
     def _close_connection(self, fileno):
-        # client disconnected
+        print('close connection')
+        self._epoll.unregister(fileno)
         self._connections[fileno].close()
         del self._connections[fileno]
+        del self._readers[fileno]
+        del self._writers[fileno]
