@@ -3,8 +3,6 @@ import queue
 import threading
 import time
 
-from reader import Reader
-from writer import Writer
 from response_buffer import ResponseBuffer
 from request import Request
 
@@ -15,6 +13,50 @@ def writers_thread_run(queue, writers):
         print('next queue item')
         writer = writers[fd]
         writer.write()
+
+
+class Reader(object):
+    READ_SIZE = 4096
+
+    def __init__(self, socket, request):
+        self._socket = socket
+        self.request = request
+        self._last_recieved = None
+
+    def read(self):
+        data = self._socket.recv(self.READ_SIZE)
+        self._last_recieved = len(data)
+        self.request.extend(data)
+
+    def is_read_completed(self):
+        if self._last_recieved is None:
+            return False
+
+        return not self._last_recieved or self.request.is_full()
+
+
+class Writer(object):
+    def __init__(self, epoll, socket, response_buffer):
+        self._epoll = epoll
+        self._socket = socket
+        self._response_buffer = response_buffer
+        self._total_sent = 0
+        self._last_sent = None
+        self._buffer = bytearray()
+
+    def write(self):
+        print('writing', id(self), time.time())
+        self._buffer += self._response_buffer.get_next_chunk()
+
+        self._last_sent = self._socket.send(self._buffer)
+        self._buffer = self._buffer[self._last_sent:]
+        self._total_sent += self._last_sent
+
+        # we are ready to send again
+        self._epoll.register(self._socket, select.EPOLLIN)
+
+    def has_unsent_data(self):
+        return len(self._buffer) or self._response_buffer.has_unsent_data()
 
 
 class MainLoop(object):
