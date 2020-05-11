@@ -23,6 +23,7 @@ class Request(object):
             raise RuntimeError('request is not read yet')
         urlencoded_url = self._buffer.split(b' ', 2)[1].decode()
         if urlencoded_url:
+            # drop url params
             urlencoded_url = urlencoded_url.split('?')[0]
         return unquote(urlencoded_url)
 

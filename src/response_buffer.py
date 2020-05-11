@@ -44,6 +44,12 @@ class ResponseBuffer(object):
             self._open_response_file(filepath)
             chunk += self._format_headers(self._make_headers_200())
 
+        if self._request.method == 'HEAD':
+            # emulate that file was read
+            # so next time has_unsent_data will return False
+            self._file_pos = self._file_end
+            return chunk
+
         chunk += self._file.read(self.FILE_READ_BLOCK)
         self._file_pos = self._file.tell()
         return chunk
