@@ -1,7 +1,6 @@
 import select
 import queue
 import threading
-import time
 
 from response_buffer import ResponseBuffer
 from request import Request
@@ -45,17 +44,15 @@ class Writer(object):
         self._epoll = epoll
         self._socket = socket
         self._response_buffer = response_buffer
-        self._total_sent = 0
-        self._last_sent = None
         self._buffer = bytearray()
 
     def write(self):
-        print('writing', id(self), time.time())
-        self._buffer += self._response_buffer.get_next_chunk()
+        print('writing')
+        if not self._buffer:
+            self._buffer += self._response_buffer.get_next_chunk()
 
-        self._last_sent = self._socket.send(self._buffer)
-        self._buffer = self._buffer[self._last_sent:]
-        self._total_sent += self._last_sent
+        sent = self._socket.send(self._buffer)
+        self._buffer = self._buffer[sent:]
 
         # we are ready to send again
         self._epoll.register(self._socket, select.EPOLLIN)
@@ -113,7 +110,7 @@ class MainLoop(object):
                 self._epoll.modify(fileno, select.EPOLLOUT)
 
         elif event == select.EPOLLOUT:
-            print('send response', time.time())
+            print('send response')
             writer = self._writers[fileno]
             if not writer.has_unsent_data():
                 self._close_connection(fileno)
@@ -127,7 +124,7 @@ class MainLoop(object):
             self._close_connection(fileno)
 
     def _close_connection(self, fileno):
-        print('close connection', time.time())
+        print('close connection')
         self._epoll.unregister(fileno)
         self._connections[fileno].close()
         del self._connections[fileno]
