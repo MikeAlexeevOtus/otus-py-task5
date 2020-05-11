@@ -22,10 +22,12 @@ class Request(object):
         if not self.is_full():
             raise RuntimeError('request is not read yet')
         urlencoded_url = self._buffer.split(b' ', 2)[1].decode()
+        if urlencoded_url:
+            urlencoded_url = urlencoded_url.split('?')[0]
         return unquote(urlencoded_url)
 
     @property
-    def verb(self):
+    def method(self):
         if not self.is_full():
             raise RuntimeError('request is not read yet')
         return self._buffer.split(b' ', 1)[0].decode()

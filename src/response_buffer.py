@@ -11,11 +11,13 @@ class ResponseBuffer(object):
         '.css': 'text/css',
         '.js': 'application/javascript',
         '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
         '.png': 'image/png',
         '.gif': 'image/gif',
         '.swf': 'application/x-shockwave-flash',
     }
     DEFAULT_CONTENT_TYPE = 'text/plain'
+    ALLOWED_METHODS = ['GET', 'HEAD']
 
     def __init__(self, request, document_root):
         self._request = request
@@ -26,13 +28,20 @@ class ResponseBuffer(object):
 
     def get_next_chunk(self):
         print('in get next chunk')
-        if not os.path.exists(self._make_filepath()):
+        filepath = self._make_filepath()
+        if self._request.method not in self.ALLOWED_METHODS:
+            return self._format_headers(self._make_headers_405())
+
+        elif not self._check_if_subpath(filepath):
+            return self._format_headers(self._make_headers_403())
+
+        elif not os.path.exists(filepath):
             return self._format_headers(self._make_headers_404())
 
         chunk = bytearray()
         if not self._file:
             # not data sent yet
-            self._open_response_file()
+            self._open_response_file(filepath)
             chunk += self._format_headers(self._make_headers_200())
 
         chunk += self._file.read(self.FILE_READ_BLOCK)
@@ -49,8 +58,12 @@ class ResponseBuffer(object):
 
         return filepath
 
-    def _open_response_file(self):
-        self._file = open(self._make_filepath(), 'rb')
+    def _check_if_subpath(self, filepath):
+        docs_root = os.path.realpath(self._document_root)
+        return os.path.realpath(filepath).startswith(docs_root)
+
+    def _open_response_file(self, filepath):
+        self._file = open(filepath, 'rb')
         self._file.seek(0, io.SEEK_END)
         self._file_end = self._file.tell()
         self._file.seek(0, io.SEEK_SET)
@@ -72,11 +85,22 @@ class ResponseBuffer(object):
             "Content-Length: %d" % self._file_end
         ] + self._make_headers_base()
 
+    def _make_headers_403(self):
+        return [
+            "HTTP/1.0 403 Forbidden",
+            "Content-Length: 0",
+        ] + self._make_headers_base()
+
     def _make_headers_404(self):
         return [
             "HTTP/1.0 404 Not Found",
-            "Content-Type: text/plain",
-            "Content-Length: 0"
+            "Content-Length: 0",
+        ] + self._make_headers_base()
+
+    def _make_headers_405(self):
+        return [
+            "HTTP/1.0 405 Method Not Allowed",
+            "Content-Length: 0",
         ] + self._make_headers_base()
 
     def _get_content_type(self):

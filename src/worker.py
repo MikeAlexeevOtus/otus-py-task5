@@ -14,6 +14,7 @@ def init_serversocket(addr, port, backlog):
 
     return sock
 
+
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument('--docs-root', '-r', type=pathlib.Path, required=True)
 args = arg_parser.parse_args()
