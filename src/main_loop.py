@@ -35,12 +35,10 @@ class Reader(object):
         if self._last_recieved is None:
             # have not read any yet
             return True
-        elif self.request.is_full():
+        elif self.request.is_full() or not self._last_recieved:
             # we have read enough
             return False
-        elif self._last_recieved:
-            # last read was successfull
-            return True
+        return True
 
 
 class Writer(object):
@@ -54,6 +52,7 @@ class Writer(object):
         if not self._buffer:
             self._buffer += self._response_buffer.get_next_chunk()
 
+        logging.debug('sending %s', str(self._buffer))
         sent = self._socket.send(self._buffer)
         logging.debug('sent %d bytes', sent)
         self._buffer = self._buffer[sent:]

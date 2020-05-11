@@ -30,8 +30,6 @@ arg_parser.add_argument('--workers', '-w', type=int, default=4)
 arg_parser.add_argument('--debug', '-d', action='store_true')
 args = arg_parser.parse_args()
 
-serversock = init_serversocket(args.addr, args.port, BACKLOG)
-
 logging.basicConfig(
     format='[%(asctime)s] %(process)d:%(threadName)s %(levelname).1s - %(message)s',
     datefmt='%Y.%m.%d %H:%M:%S',
@@ -49,6 +47,7 @@ for worker in range(args.workers):
     else:
         # in worker
         logging.info('started worker')
+        serversock = init_serversocket(args.addr, args.port, BACKLOG)
         loop = MainLoop(serversock, args.docs_root)
         loop.run()
 

@@ -25,16 +25,20 @@ class Response(object):
         self._file = None
         self._file_pos = None
         self._file_end = None
+        self._response_finished = False
 
     def get_next_chunk(self):
         filepath = self._make_filepath()
         if self._request.method not in self.ALLOWED_METHODS:
+            self._response_finished = True
             return self._format_headers(self._make_headers_405())
 
         elif not self._check_if_subpath(filepath):
+            self._response_finished = True
             return self._format_headers(self._make_headers_403())
 
         elif not os.path.exists(filepath):
+            self._response_finished = True
             return self._format_headers(self._make_headers_404())
 
         chunk = bytearray()
@@ -44,9 +48,7 @@ class Response(object):
             chunk += self._format_headers(self._make_headers_200())
 
         if self._request.method == 'HEAD':
-            # emulate that file was read
-            # so next time has_unsent_data will return False
-            self._file_pos = self._file_end
+            self._response_finished = True
             return chunk
 
         chunk += self._file.read(self.FILE_READ_BLOCK)
@@ -54,6 +56,8 @@ class Response(object):
         return chunk
 
     def has_unsent_data(self):
+        if self._response_finished:
+            return False
         return not self._file or self._file_pos != self._file_end
 
     def _make_filepath(self):
