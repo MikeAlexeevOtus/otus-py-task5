@@ -55,16 +55,17 @@ class Writer(object):
         self._buffer = self._buffer[sent:]
 
         # we are ready to send again
-        self._epoll.register(self._socket, select.EPOLLIN)
+        self._epoll.register(self._socket, select.EPOLLOUT)
 
     def has_unsent_data(self):
         return len(self._buffer) or self._response_buffer.has_unsent_data()
 
 
 class MainLoop(object):
-    def __init__(self, serversock):
-        self._epoll = None
+    def __init__(self, serversock, docs_root):
+        self._docs_root = docs_root
         self._serversock = serversock
+        self._epoll = None
         self._connections = {}
         self._readers = {}
         self._writers = {}
@@ -92,7 +93,7 @@ class MainLoop(object):
             conn, addr = self._serversock.accept()
             conn.setblocking(False)
             request = Request()
-            resp_buffer = ResponseBuffer(request, '/tmp/share')
+            resp_buffer = ResponseBuffer(request, self._docs_root)
 
             self._connections[conn.fileno()] = conn
             self._readers[conn.fileno()] = Reader(conn, request)

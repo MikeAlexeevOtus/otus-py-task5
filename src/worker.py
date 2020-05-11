@@ -1,4 +1,6 @@
 import socket
+import argparse
+import pathlib
 
 from main_loop import MainLoop
 
@@ -12,7 +14,10 @@ def init_serversocket(addr, port, backlog):
 
     return sock
 
+arg_parser = argparse.ArgumentParser()
+arg_parser.add_argument('--docs-root', '-r', type=pathlib.Path, required=True)
+args = arg_parser.parse_args()
 
 serversock = init_serversocket('', 8080, 100)
-loop = MainLoop(serversock)
+loop = MainLoop(serversock, args.docs_root)
 loop.run()
