@@ -1,6 +1,7 @@
 import select
 import queue
 import threading
+import logging
 
 from response import Response
 from request import Request
@@ -10,12 +11,11 @@ def writers_thread_run(queue, writers):
     while True:
         try:
             fd = queue.get()
-            print('next queue item')
+            logging.debug('getting next queue item for processing')
             writer = writers[fd]
             writer.write()
-        except Exception as e:
-            print(e)
-            # TODO log error
+        except Exception:
+            logging.exception('error in writers thread')
 
 
 class Reader(object):
@@ -51,11 +51,11 @@ class Writer(object):
         self._buffer = bytearray()
 
     def write(self):
-        print('writing')
         if not self._buffer:
             self._buffer += self._response_buffer.get_next_chunk()
 
         sent = self._socket.send(self._buffer)
+        logging.debug('sent %d bytes', sent)
         self._buffer = self._buffer[sent:]
 
         # we are ready to send again
@@ -87,12 +87,11 @@ class MainLoop(object):
             try:
                 for fileno, event in self._epoll.poll(1):
                     self._process_epoll_event(fileno, event)
-            except Exception as e:
-                print(e)
-                # TODO - log
+            except Exception:
+                logging.exception('error in main thread')
 
     def _process_epoll_event(self, fileno, event):
-        print(fileno, event)
+        logging.debug('processing epoll event, fd: %d, event: %d', fileno, event)
         if not self._epoll:
             raise RuntimeError('epoll is not initialized')
 
@@ -111,7 +110,7 @@ class MainLoop(object):
             self._epoll.register(conn, select.EPOLLIN)
 
         elif event == select.EPOLLIN:
-            print('read request')
+            logging.debug('read request')
             reader = self._readers[fileno]
             reader.read()
             if not reader.has_unread_data():
@@ -119,7 +118,7 @@ class MainLoop(object):
                 self._epoll.modify(fileno, select.EPOLLOUT)
 
         elif event == select.EPOLLOUT:
-            print('send response')
+            logging.debug('send response')
             writer = self._writers[fileno]
             if not writer.has_unsent_data():
                 self._close_connection(fileno)
@@ -133,7 +132,7 @@ class MainLoop(object):
             self._close_connection(fileno)
 
     def _close_connection(self, fileno):
-        print('close connection')
+        logging.debug('close connection')
         self._epoll.unregister(fileno)
         self._connections[fileno].close()
         del self._connections[fileno]

@@ -27,7 +27,6 @@ class Response(object):
         self._file_end = None
 
     def get_next_chunk(self):
-        print('in get next chunk')
         filepath = self._make_filepath()
         if self._request.method not in self.ALLOWED_METHODS:
             return self._format_headers(self._make_headers_405())

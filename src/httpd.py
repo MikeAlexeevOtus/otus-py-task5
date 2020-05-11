@@ -2,6 +2,7 @@ import os
 import argparse
 import pathlib
 import socket
+import logging
 
 from main_loop import MainLoop
 
@@ -26,11 +27,18 @@ arg_parser.add_argument('--docs-root', '-r', type=pathlib.Path, required=True)
 arg_parser.add_argument('--port', '-p', type=int, default=8080)
 arg_parser.add_argument('--addr', '-i', type=str, default='127.0.0.1')
 arg_parser.add_argument('--workers', '-w', type=int, default=4)
+arg_parser.add_argument('--debug', '-d', action='store_true')
 args = arg_parser.parse_args()
 
 serversock = init_serversocket(args.addr, args.port, BACKLOG)
 
-print('started master', os.getpid())
+logging.basicConfig(
+    format='[%(asctime)s] %(process)d:%(threadName)s %(levelname).1s - %(message)s',
+    datefmt='%Y.%m.%d %H:%M:%S',
+    level=logging.DEBUG if args.debug else logging.INFO
+)
+
+logging.info('started master')
 
 for worker in range(args.workers):
     pid = os.fork()
@@ -40,7 +48,7 @@ for worker in range(args.workers):
         continue
     else:
         # in worker
-        print('started worker', worker, os.getpid())
+        logging.info('started worker')
         loop = MainLoop(serversock, args.docs_root)
         loop.run()
 
