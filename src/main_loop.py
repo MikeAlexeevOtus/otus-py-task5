@@ -75,7 +75,8 @@ class MainLoop(object):
         self._writers = {}
         self._writers_queue = queue.Queue()
         self._writers_thread = threading.Thread(target=writers_thread_run,
-                                                args=(self._writers_queue, self._writers))
+                                                args=(self._writers_queue, self._writers,),
+                                                daemon=True)
 
     def run(self):
         self._epoll = select.epoll()
