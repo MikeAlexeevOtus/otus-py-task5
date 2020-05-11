@@ -3,7 +3,7 @@ import io
 from email.utils import formatdate
 
 
-class ResponseBuffer(object):
+class Response(object):
     FILE_READ_BLOCK = 4096
     INDEX_FILE = 'index.html'
     CONTENT_TYPES = {

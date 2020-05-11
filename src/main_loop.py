@@ -2,7 +2,7 @@ import select
 import queue
 import threading
 
-from response_buffer import ResponseBuffer
+from response import Response
 from request import Request
 
 
@@ -100,7 +100,7 @@ class MainLoop(object):
             conn, addr = self._serversock.accept()
             conn.setblocking(False)
             request = Request()
-            resp_buffer = ResponseBuffer(request, self._docs_root)
+            resp_buffer = Response(request, self._docs_root)
 
             self._connections[conn.fileno()] = conn
             self._readers[conn.fileno()] = Reader(conn, request)
