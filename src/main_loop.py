@@ -8,10 +8,14 @@ from request import Request
 
 def writers_thread_run(queue, writers):
     while True:
-        fd = queue.get()
-        print('next queue item')
-        writer = writers[fd]
-        writer.write()
+        try:
+            fd = queue.get()
+            print('next queue item')
+            writer = writers[fd]
+            writer.write()
+        except Exception as e:
+            print(e)
+            # TODO log error
 
 
 class Reader(object):
@@ -78,10 +82,13 @@ class MainLoop(object):
         self._epoll.register(self._serversock, select.EPOLLIN)
         self._writers_thread.start()
 
-        # TODO - try/except
         while True:
-            for fileno, event in self._epoll.poll(1):
-                self._process_epoll_event(fileno, event)
+            try:
+                for fileno, event in self._epoll.poll(1):
+                    self._process_epoll_event(fileno, event)
+            except Exception as e:
+                print(e)
+                # TODO - log
 
     def _process_epoll_event(self, fileno, event):
         print(fileno, event)
