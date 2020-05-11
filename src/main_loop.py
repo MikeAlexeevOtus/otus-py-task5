@@ -28,11 +28,16 @@ class Reader(object):
         self._last_recieved = len(data)
         self.request.extend(data)
 
-    def is_read_completed(self):
+    def has_unread_data(self):
         if self._last_recieved is None:
+            # have not read any yet
+            return True
+        elif self.request.is_full():
+            # we have read enough
             return False
-
-        return not self._last_recieved or self.request.is_full()
+        elif self._last_recieved:
+            # last read was successfull
+            return True
 
 
 class Writer(object):
@@ -103,7 +108,7 @@ class MainLoop(object):
             print('read request')
             reader = self._readers[fileno]
             reader.read()
-            if reader.is_read_completed():
+            if not reader.has_unread_data():
                 # ready to send response, switch epoll subscription
                 self._epoll.modify(fileno, select.EPOLLOUT)
 
