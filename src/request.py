@@ -1,3 +1,6 @@
+from urllib.parse import unquote
+
+
 class Request(object):
     EOF1 = b'\n\n'
     EOF2 = b'\r\n\r\n'
@@ -18,7 +21,8 @@ class Request(object):
     def url(self):
         if not self.is_full():
             raise RuntimeError('request is not read yet')
-        return self._buffer.split(b' ', 2)[1].decode()
+        urlencoded_url = self._buffer.split(b' ', 2)[1].decode()
+        return unquote(urlencoded_url)
 
     @property
     def verb(self):
