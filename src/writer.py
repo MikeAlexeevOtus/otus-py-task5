@@ -1,31 +1,20 @@
-resp = b"""HTTP/1.0 200 OK
-Date: Mon, 1 Jan 1996 01:01:01 GMT
-Content-Type: text/plain
-Content-Length: 4
-
-xx
-""".replace(b'\n', b'\r\n')
-
-
 class Writer(object):
     def __init__(self, socket):
         self._socket = socket
         self._total_sent = 0
         self._last_sent = None
-        self._enabled = False
+        self._buffer = bytearray()
 
     def write(self):
-        if not self._enabled:
-            raise RuntimeError('writer is disabled, can not write')
-
-        self._last_sent = self._socket.send(resp)
+        self._last_sent = self._socket.send(self._buffer)
+        self._buffer = self._buffer[self._last_sent:]
         self._total_sent += self._last_sent
 
     def is_write_completed(self):
-        if self._last_sent is None:
-            return False
+        return self._last_sent == 0
 
-        return not self._last_sent or self._total_sent == len(resp)
+    def add_data(self, data):
+        self._buffer += data
 
-    def enable(self):
-        self._enabled = True
+    def has_unsent_data(self):
+        return len(self._buffer)

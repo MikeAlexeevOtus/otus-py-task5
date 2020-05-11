@@ -2,6 +2,8 @@ import select
 
 from reader import Reader
 from writer import Writer
+from response_buffer import ResponseBuffer
+from request import Request
 
 
 class MainLoop(object):
@@ -11,6 +13,7 @@ class MainLoop(object):
         self._connections = {}
         self._readers = {}
         self._writers = {}
+        self._response_buffers = {}
 
     def run(self):
         self._epoll = select.epoll()
@@ -30,9 +33,12 @@ class MainLoop(object):
             # new connection
             conn, addr = self._serversock.accept()
             conn.setblocking(False)
+            request = Request()
             self._connections[conn.fileno()] = conn
-            self._readers[conn.fileno()] = Reader(conn)
+            self._response_buffers[conn.fileno()] = ResponseBuffer(request)
+            self._readers[conn.fileno()] = Reader(conn, request)
             self._writers[conn.fileno()] = Writer(conn)
+
             # subscribe for connection new data event
             self._epoll.register(conn, select.EPOLLIN)
 
@@ -44,14 +50,16 @@ class MainLoop(object):
                 # ready to send response, switch subscription
                 self._epoll.modify(fileno, select.EPOLLOUT)
 
-                # prevent concurent request body access
-                reader.disable()
-                self._writers[fileno].enable()
-
         elif event == select.EPOLLOUT:
             print('send response')
-            self._writers[fileno].write()
-            if self._writers[fileno].is_write_completed():
+            resp_buffer = self._response_buffers[fileno]
+            writer = self._writers[fileno]
+
+            writer.add_data(resp_buffer.get_next_chunk())
+
+            # TODO check buffer is ready or we have unsent data
+            writer.write()
+            if writer.is_write_completed():
                 self._close_connection(fileno)
         else:
             self._close_connection(fileno)
@@ -63,3 +71,4 @@ class MainLoop(object):
         del self._connections[fileno]
         del self._readers[fileno]
         del self._writers[fileno]
+        del self._response_buffers[fileno]
